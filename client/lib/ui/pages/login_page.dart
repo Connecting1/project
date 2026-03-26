@@ -45,13 +45,13 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-    } catch (_) {
+    } catch (e) {
       if (!mounted) {
         return;
       }
-
+      debugPrint('LOGIN ERROR: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')),
+        SnackBar(content: Text('오류 : $e')),
       );
     } finally {
       if (mounted) {
