@@ -1,5 +1,16 @@
-import 'package:camera/camera.dart';
+import 'package:ar_flutter_plugin/ar_flutter_plugin.dart';
+import 'package:ar_flutter_plugin/datatypes/config_planedetection.dart';
+import 'package:ar_flutter_plugin/datatypes/hittest_result_types.dart';
+import 'package:ar_flutter_plugin/datatypes/node_types.dart';
+import 'package:ar_flutter_plugin/managers/ar_anchor_manager.dart';
+import 'package:ar_flutter_plugin/managers/ar_location_manager.dart';
+import 'package:ar_flutter_plugin/managers/ar_object_manager.dart';
+import 'package:ar_flutter_plugin/managers/ar_session_manager.dart';
+import 'package:ar_flutter_plugin/models/ar_anchor.dart';
+import 'package:ar_flutter_plugin/models/ar_hittest_result.dart';
+import 'package:ar_flutter_plugin/models/ar_node.dart';
 import 'package:flutter/material.dart';
+import 'package:vector_math/vector_math_64.dart' as vm;
 
 class ArScreen extends StatefulWidget {
   const ArScreen({super.key});
@@ -9,81 +20,87 @@ class ArScreen extends StatefulWidget {
 }
 
 class _ArScreenState extends State<ArScreen> {
-  CameraController? _controller;
-  bool _isInitialized = false;
-  bool _isTakingPicture = false;
+  ARSessionManager? _arSessionManager;
+  ARObjectManager? _arObjectManager;
+  ARAnchorManager? _arAnchorManager;
 
-  @override
-  void initState() {
-    super.initState();
-    _initCamera();
+  final List<ARNode> _nodes = [];
+  final List<ARAnchor> _anchors = [];
+
+  bool _planeDetected = false;
+
+  void _onARViewCreated(
+    ARSessionManager arSessionManager,
+    ARObjectManager arObjectManager,
+    ARAnchorManager arAnchorManager,
+    ARLocationManager arLocationManager,
+  ) {
+    _arSessionManager = arSessionManager;
+    _arObjectManager = arObjectManager;
+    _arAnchorManager = arAnchorManager;
+
+    _arSessionManager!.onInitialize(
+      showFeaturePoints: false,
+      showPlanes: true,
+      customPlaneTexturePath: null,
+      showWorldOrigin: false,
+      handlePans: true,
+      handleRotation: true,
+    );
+    _arObjectManager!.onInitialize();
+    _arSessionManager!.onPlaneOrPointTap = _onPlaneTapped;
   }
 
-  Future<void> _initCamera() async {
-    final cameras = await availableCameras();
-    if (cameras.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('카메라를 찾을 수 없습니다.')),
-        );
-      }
-      return;
-    }
-
-    _controller = CameraController(
-      cameras.first,
-      ResolutionPreset.high,
-      enableAudio: false,
+  Future<void> _onPlaneTapped(List<ARHitTestResult> hitTestResults) async {
+    final planeHit = hitTestResults.firstWhere(
+      (r) => r.type == ARHitTestResultType.plane,
+      orElse: () => hitTestResults.first,
     );
 
-    try {
-      await _controller!.initialize();
+    final anchor = ARPlaneAnchor(transformation: planeHit.worldTransform);
+    final didAddAnchor = await _arAnchorManager!.addAnchor(anchor);
+
+    if (didAddAnchor != true) return;
+    _anchors.add(anchor);
+
+    final node = ARNode(
+      type: NodeType.webGLB,
+      uri: 'https://github.com/KhronosGroup/glTF-Sample-Models/raw/master/2.0/Box/glTF-Binary/Box.glb',
+      scale: vm.Vector3(0.15, 0.15, 0.15),
+      position: vm.Vector3(0.0, 0.0, 0.0),
+      rotation: vm.Vector4(1.0, 0.0, 0.0, 0.0),
+    );
+
+    final didAddNode = await _arObjectManager!.addNode(node, planeAnchor: anchor);
+    if (didAddNode == true) {
+      _nodes.add(node);
       if (mounted) {
         setState(() {
-          _isInitialized = true;
+          _planeDetected = true;
         });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('카메라 초기화 실패: $e')),
-        );
       }
     }
   }
 
-  Future<void> _takePicture() async {
-    if (_controller == null || !_controller!.value.isInitialized || _isTakingPicture) return;
-
-    setState(() {
-      _isTakingPicture = true;
-    });
-
-    try {
-      await _controller!.takePicture();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('사진이 저장되었습니다.')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('살영 실패: $e')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isTakingPicture = false;
-        });
-      }
+  Future<void> _clearAll() async {
+    for (final node in _nodes) {
+      await _arObjectManager!.removeNode(node);
+    }
+    for (final anchor in _anchors) {
+      await _arAnchorManager!.removeAnchor(anchor);
+    }
+    _nodes.clear();
+    _anchors.clear();
+    if (mounted) {
+      setState(() {
+        _planeDetected = false;
+      });
     }
   }
 
   @override
   void dispose() {
-    _controller?.dispose();
+    _arSessionManager?.dispose();
     super.dispose();
   }
 
@@ -94,21 +111,16 @@ class _ArScreenState extends State<ArScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          _buildCameraPreview(),
+          ARView(
+            onARViewCreated: _onARViewCreated,
+            planeDetectionConfig: PlaneDetectionConfig.horizontalAndVertical,
+          ),
           _buildTopBar(),
-          _buildBottomControls(),
+          _buildGuideText(),
+          if (_planeDetected) _buildClearButton(),
         ],
       ),
     );
-  }
-
-  Widget _buildCameraPreview() {
-    if (!_isInitialized || _controller == null) {
-      return const Center(
-        child: CircularProgressIndicator(color: Colors.white),
-      );
-    }
-    return CameraPreview(_controller!);
   }
 
   Widget _buildTopBar() {
@@ -126,27 +138,43 @@ class _ArScreenState extends State<ArScreen> {
     );
   }
 
-  Widget _buildBottomControls() {
+  Widget _buildGuideText() {
+    return SafeArea(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 64),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.black54,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              _planeDetected
+                  ? '바닥을 감지했습니다. 탭하면 큐브를 놓습니다.'
+                  : '평평한 바닥을 향해 천청히 움직여주세요.',
+              style: const TextStyle(color: Colors.white, fontSize: 13),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildClearButton() {
     return Align(
       alignment: Alignment.bottomCenter,
       child: Padding(
         padding: const EdgeInsets.only(bottom: 50),
-        child: GestureDetector(
-          onTap: _takePicture,
-          child: Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 4),
-              color: Colors.white.withOpacity(0.25),
-            ),
-            child: _isTakingPicture
-                ? const Padding(
-                    padding: EdgeInsets.all(20),
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                  )
-                : null,
+        child: ElevatedButton.icon(
+          onPressed: _clearAll,
+          icon: const Icon(Icons.delete_outline),
+          label: const Text('전체 지우기'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.black54,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           ),
         ),
       ),
