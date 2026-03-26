@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'register_page.dart';
-import 'main_page.dart';
+import 'main_tab_page.dart';
 import '../services/auth_api.dart';
 
 class LoginPage extends StatefulWidget {
@@ -38,7 +38,7 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainNavigationPage()));
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainTabPage()));
     } on AuthApiException catch (e) {
       if (!mounted) {
         return;
@@ -49,9 +49,9 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) {
         return;
       }
-      debugPrint('LOGIN ERROR: $e');
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('오류 : $e')),
+        SnackBar(content: Text('오류: $e')),
       );
     } finally {
       if (mounted) {
@@ -64,15 +64,14 @@ class _LoginPageState extends State<LoginPage> {
 
   void _handleSocialLogin(String provider) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('🗝️ $provider(으)로 기억의 문을 엽니다.')));
-    // 소셜 로그인 성공 시 main.dart에 있는 MainNavigationPage로 이동
-    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainNavigationPage()));
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainTabPage()));
   }
 
   @override
   Widget build(BuildContext context) {
-    const Color textColor = Color(0xFF2E2B2A); 
-    const Color textLightColor = Color(0xFF7A756D); 
-    const Color pointRedColor = Color(0xFFA14040); 
+    const Color textColor = Color(0xFF2E2B2A);
+    const Color textLightColor = Color(0xFF7A756D);
+    const Color pointRedColor = Color(0xFFA14040);
 
     return Scaffold(
       body: SafeArea(
@@ -90,7 +89,7 @@ class _LoginPageState extends State<LoginPage> {
                     border: Border.all(color: pointRedColor, width: 2),
                   ),
                   alignment: Alignment.center,
-                  child: const Icon(Icons.lock_person_rounded, size: 45, color: pointRedColor), 
+                  child: const Icon(Icons.lock_person_rounded, size: 45, color: pointRedColor),
                 ),
                 const SizedBox(height: 20),
                 const Text('캡슐', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: textColor)),
@@ -116,8 +115,8 @@ class _LoginPageState extends State<LoginPage> {
                   width: double.infinity, height: 55,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: textColor, 
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), 
+                      backgroundColor: textColor,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       elevation: 2,
                     ),
                     onPressed: _handleLogin,
@@ -166,7 +165,6 @@ class _LoginPageState extends State<LoginPage> {
                   children: [
                     const Text('아직 기록을 남기지 않으셨나요?', style: TextStyle(color: textLightColor)),
                     TextButton(
-                      // RegisterPage로 이동
                       onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterPage())),
                       child: const Text('회원가입 시작하기', style: TextStyle(fontWeight: FontWeight.bold, color: pointRedColor)),
                     ),
@@ -186,11 +184,11 @@ class _LoginPageState extends State<LoginPage> {
       obscureText: isPassword,
       style: const TextStyle(color: Color(0xFF2E2B2A)),
       decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: const Color(0xFF7A756D)), 
-        hintText: hintText, 
+        prefixIcon: Icon(icon, color: const Color(0xFF7A756D)),
+        hintText: hintText,
         hintStyle: const TextStyle(color: Color(0xFFA8A398)),
-        filled: true, 
-        fillColor: const Color(0xFFFAF9F6), 
+        filled: true,
+        fillColor: const Color(0xFFFAF9F6),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E0D8))),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E0D8))),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2E2B2A))),
@@ -203,20 +201,20 @@ class _LoginPageState extends State<LoginPage> {
       width: double.infinity, height: 52,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: color, 
-          foregroundColor: textColor, 
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), 
-          side: isBordered ? const BorderSide(color: Color(0xFFD6D1C4), width: 1) : BorderSide.none, 
+          backgroundColor: color,
+          foregroundColor: textColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          side: isBordered ? const BorderSide(color: Color(0xFFD6D1C4), width: 1) : BorderSide.none,
           elevation: isBordered ? 0 : 1,
         ),
         onPressed: onPressed,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (icon == Icons.g_mobiledata) 
+            if (icon == Icons.g_mobiledata)
               Container(padding: const EdgeInsets.all(2), decoration: BoxDecoration(color: Colors.red[50], shape: BoxShape.circle), child: Icon(icon, color: iconColor ?? textColor, size: 24))
             else
-              Icon(icon, size: 18, color: iconColor ?? textColor), 
+              Icon(icon, size: 18, color: iconColor ?? textColor),
             const SizedBox(width: 10),
             Text(text, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
           ],
