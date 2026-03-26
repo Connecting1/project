@@ -10,7 +10,7 @@ import 'package:ar_flutter_plugin/models/ar_anchor.dart';
 import 'package:ar_flutter_plugin/models/ar_hittest_result.dart';
 import 'package:ar_flutter_plugin/models/ar_node.dart';
 import 'package:flutter/material.dart';
-import 'package:vector_math/vector_math_64.dart';
+import 'package:vector_math/vector_math_64.dart' as vm;
 
 class ArScreen extends StatefulWidget {
   const ArScreen({super.key});
@@ -48,7 +48,6 @@ class _ArScreenState extends State<ArScreen> {
       handleRotation: true,
     );
     _arObjectManager!.onInitialize();
-
     _arSessionManager!.onPlaneOrPointTap = _onPlaneTapped;
   }
 
@@ -64,14 +63,12 @@ class _ArScreenState extends State<ArScreen> {
     if (didAddAnchor != true) return;
     _anchors.add(anchor);
 
-    // 임시 큐브 (GLB 웹 URL 사용 - 로컬 에셋 불필요)
     final node = ARNode(
       type: NodeType.webGLB,
-      uri:
-          'https://github.com/KhronosGroup/glTF-Sample-Models/raw/master/2.0/Box/glTF-Binary/Box.glb',
-      scale: Vector3(0.15, 0.15, 0.15),
-      position: Vector3(0.0, 0.0, 0.0),
-      rotation: Vector4(1.0, 0.0, 0.0, 0.0),
+      uri: 'https://github.com/KhronosGroup/glTF-Sample-Models/raw/master/2.0/Box/glTF-Binary/Box.glb',
+      scale: vm.Vector3(0.15, 0.15, 0.15),
+      position: vm.Vector3(0.0, 0.0, 0.0),
+      rotation: vm.Vector4(1.0, 0.0, 0.0, 0.0),
     );
 
     final didAddNode = await _arObjectManager!.addNode(node, planeAnchor: anchor);
@@ -156,7 +153,7 @@ class _ArScreenState extends State<ArScreen> {
             child: Text(
               _planeDetected
                   ? '바닥을 감지했습니다. 탭하면 큐브를 놓습니다.'
-                  : '평평한 바닥을 향해 천청hi 움직여주세요.',
+                  : '평평한 바닥을 향해 천청히 움직여주세요.',
               style: const TextStyle(color: Colors.white, fontSize: 13),
             ),
           ),
