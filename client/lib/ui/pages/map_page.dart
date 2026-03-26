@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'ar_screen.dart';
 
 class MapPage extends StatelessWidget {
   const MapPage({super.key});
@@ -17,6 +18,16 @@ class MapPage extends StatelessWidget {
           '지도 화면',
           style: TextStyle(color: Color(0xFF2E2B2A), fontSize: 16),
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ArScreen()),
+          );
+        },
+        backgroundColor: const Color(0xFFA14040),
+        child: const Icon(Icons.view_in_ar, color: Colors.white),
       ),
     );
   }
