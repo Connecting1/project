@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'ui/pages/login_page.dart';
+import 'ui/pages/login/login_page.dart';
 
 void main() {
   runApp(const KMemoryCapsuleApp());
