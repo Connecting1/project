@@ -47,11 +47,10 @@ class _ArScreenState extends State<ArScreen> {
       final dir = await getApplicationDocumentsDirectory();
       final file = File('${dir.path}/$_modelFileName');
 
-      if (!file.existsSync()) {
-        final data = await rootBundle.load('assets/models/$_modelFileName');
-        final bytes = data.buffer.asUint8List();
-        await file.writeAsBytes(bytes, flush: true);
-      }
+      // 매번 새로 복사 (GLB 파일 교체 시 반영되도록)
+      final data = await rootBundle.load('assets/models/$_modelFileName');
+      final bytes = data.buffer.asUint8List();
+      await file.writeAsBytes(bytes, flush: true);
 
       if (mounted) {
         setState(() {
@@ -104,8 +103,7 @@ class _ArScreenState extends State<ArScreen> {
       uri: _modelFileName,
       scale: vm.Vector3(0.15, 0.15, 0.15),
       position: vm.Vector3(0.0, 0.0, 0.0),
-      // Y축 90도 회전: sin(45°)=0.707, cos(45°)=0.707
-      rotation: vm.Vector4(0.0, 0.707, 0.0, 0.707),
+      rotation: vm.Vector4(0.0, 0.0, 0.0, 1.0),
     );
 
     final didAddNode = await _arObjectManager!.addNode(node, planeAnchor: anchor);
