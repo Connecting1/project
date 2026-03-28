@@ -63,10 +63,9 @@ class _ArScreenState extends State<ArScreen> {
     if (didAddAnchor != true) return;
     _anchors.add(anchor);
 
-    // raw.githubusercontent.com 사용 (github.com/raw/ 도메인은 리다이렉트 문제 있음)
     final node = ARNode(
-      type: NodeType.webGLB,
-      uri: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb',
+      type: NodeType.localGLTF2,
+      uri: 'assets/models/cube.glb',
       scale: vm.Vector3(0.15, 0.15, 0.15),
       position: vm.Vector3(0.0, 0.0, 0.0),
       rotation: vm.Vector4(1.0, 0.0, 0.0, 0.0),
