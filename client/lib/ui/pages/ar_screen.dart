@@ -29,6 +29,10 @@ class _ArScreenState extends State<ArScreen> {
 
   bool _planeDetected = false;
 
+  // 테스트용: ar_flutter_plugin 공식 예제에서 사용하는 웹 GLB
+  static const String _testModelUrl =
+      'https://github.com/KhronosGroup/glTF-Sample-Models/raw/main/2.0/Duck/glTF-Binary/Duck.glb';
+
   void _onARViewCreated(
     ARSessionManager arSessionManager,
     ARObjectManager arObjectManager,
@@ -61,20 +65,21 @@ class _ArScreenState extends State<ArScreen> {
 
     final anchor = ARPlaneAnchor(transformation: planeHit.worldTransform);
     final didAddAnchor = await _arAnchorManager!.addAnchor(anchor);
-
     if (didAddAnchor != true) return;
     _anchors.add(anchor);
 
-    // Android 네이티브 assets 경로: android/app/src/main/assets/models/cube.glb
+    // webGLB 테스트: 인터넷 GLB 로드
     final node = ARNode(
-      type: NodeType.localGLTF2,
-      uri: 'models/cube.glb',
-      scale: vm.Vector3(0.15, 0.15, 0.15),
+      type: NodeType.webGLB,
+      uri: _testModelUrl,
+      scale: vm.Vector3(0.2, 0.2, 0.2),
       position: vm.Vector3(0.0, 0.0, 0.0),
       rotation: vm.Vector4(1.0, 0.0, 0.0, 0.0),
     );
 
+    debugPrint('Adding webGLB node: $_testModelUrl');
     final didAddNode = await _arObjectManager!.addNode(node, planeAnchor: anchor);
+    debugPrint('addNode result: $didAddNode');
     if (didAddNode == true) {
       _nodes.add(node);
       if (mounted) {
@@ -155,8 +160,8 @@ class _ArScreenState extends State<ArScreen> {
             ),
             child: Text(
               _planeDetected
-                  ? '바닥을 감지했습니다. 탭하면 큐브를 놓습니다.'
-                  : '평평한 바닥을 향해 천청히 움직여주세요.',
+                  ? '바닥을 감지했습니다. 탭하면 오리 모델을 놓습니다.'
+                  : '평평한 바닥을 향해 천천히 움직여주세요.',
               style: const TextStyle(color: Colors.white, fontSize: 13),
             ),
           ),
