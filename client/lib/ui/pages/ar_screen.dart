@@ -52,6 +52,8 @@ class _ArScreenState extends State<ArScreen> {
   }
 
   Future<void> _onPlaneTapped(List<ARHitTestResult> hitTestResults) async {
+    if (hitTestResults.isEmpty) return;
+
     final planeHit = hitTestResults.firstWhere(
       (r) => r.type == ARHitTestResultType.plane,
       orElse: () => hitTestResults.first,
@@ -63,9 +65,10 @@ class _ArScreenState extends State<ArScreen> {
     if (didAddAnchor != true) return;
     _anchors.add(anchor);
 
+    // Android 네이티브 assets 경로: android/app/src/main/assets/models/cube.glb
     final node = ARNode(
       type: NodeType.localGLTF2,
-      uri: 'assets/models/cube.glb',
+      uri: 'models/cube.glb',
       scale: vm.Vector3(0.15, 0.15, 0.15),
       position: vm.Vector3(0.0, 0.0, 0.0),
       rotation: vm.Vector4(1.0, 0.0, 0.0, 0.0),
