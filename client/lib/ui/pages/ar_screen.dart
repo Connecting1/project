@@ -64,8 +64,8 @@ class _ArScreenState extends State<ArScreen> {
     _anchors.add(anchor);
 
     final node = ARNode(
-      type: NodeType.webGLB,
-      uri: 'https://github.com/KhronosGroup/glTF-Sample-Models/raw/master/2.0/Box/glTF-Binary/Box.glb',
+      type: NodeType.localGLTF2,
+      uri: 'assets/models/cube.glb',
       scale: vm.Vector3(0.15, 0.15, 0.15),
       position: vm.Vector3(0.0, 0.0, 0.0),
       rotation: vm.Vector4(1.0, 0.0, 0.0, 0.0),
