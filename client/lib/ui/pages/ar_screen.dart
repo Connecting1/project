@@ -42,26 +42,15 @@ class _ArScreenState extends State<ArScreen> {
     _prepareModel();
   }
 
-  // ar_flutter_plugin의 fileSystemAppFolderGLB는 내부적으로
-  // context.getFilesDir() + "/app_flutter/" + uri 경로를 사용함
-  // path_provider의 getApplicationDocumentsDirectory()가 바로 그 경로
   Future<void> _prepareModel() async {
     try {
       final dir = await getApplicationDocumentsDirectory();
-      debugPrint('app_flutter dir: ${dir.path}');
-
       final file = File('${dir.path}/$_modelFileName');
-      debugPrint('model path: ${file.path}');
-      debugPrint('model exists: ${file.existsSync()}');
 
       if (!file.existsSync()) {
-        debugPrint('Copying model from assets...');
         final data = await rootBundle.load('assets/models/$_modelFileName');
         final bytes = data.buffer.asUint8List();
         await file.writeAsBytes(bytes, flush: true);
-        debugPrint('Model copied, size: ${bytes.length} bytes');
-      } else {
-        debugPrint('Model already exists, size: ${file.lengthSync()} bytes');
       }
 
       if (mounted) {
@@ -98,10 +87,7 @@ class _ArScreenState extends State<ArScreen> {
 
   Future<void> _onPlaneTapped(List<ARHitTestResult> hitTestResults) async {
     if (hitTestResults.isEmpty) return;
-    if (!_modelReady) {
-      debugPrint('Model not ready yet');
-      return;
-    }
+    if (!_modelReady) return;
 
     final planeHit = hitTestResults.firstWhere(
       (r) => r.type == ARHitTestResultType.plane,
@@ -113,17 +99,16 @@ class _ArScreenState extends State<ArScreen> {
     if (didAddAnchor != true) return;
     _anchors.add(anchor);
 
-    debugPrint('Placing node with uri: $_modelFileName');
     final node = ARNode(
       type: NodeType.fileSystemAppFolderGLB,
       uri: _modelFileName,
       scale: vm.Vector3(0.15, 0.15, 0.15),
       position: vm.Vector3(0.0, 0.0, 0.0),
-      rotation: vm.Vector4(1.0, 0.0, 0.0, 0.0),
+      // identity quaternion - 회전 없음
+      rotation: vm.Vector4(0.0, 0.0, 0.0, 1.0),
     );
 
     final didAddNode = await _arObjectManager!.addNode(node, planeAnchor: anchor);
-    debugPrint('addNode result: $didAddNode');
     if (didAddNode == true) {
       _nodes.add(node);
       if (mounted) {
@@ -204,7 +189,7 @@ class _ArScreenState extends State<ArScreen> {
             ),
             child: Text(
               _planeDetected
-                  ? '바닥을 감지했습니다. 탭하면 큐브를 놓습니다.'
+                  ? '바닥을 감지했습니다. 탭하면 타임캡슐을 놓습니다.'
                   : '평평한 바닥을 향해 천천히 움직여주세요.',
               style: const TextStyle(color: Colors.white, fontSize: 13),
             ),
