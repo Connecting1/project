@@ -47,11 +47,10 @@ class _ArScreenState extends State<ArScreen> {
       final dir = await getApplicationDocumentsDirectory();
       final file = File('${dir.path}/$_modelFileName');
 
-      if (!file.existsSync()) {
-        final data = await rootBundle.load('assets/models/$_modelFileName');
-        final bytes = data.buffer.asUint8List();
-        await file.writeAsBytes(bytes, flush: true);
-      }
+      // 매번 새로 복사 (GLB 파일 교체 시 반영되도록)
+      final data = await rootBundle.load('assets/models/$_modelFileName');
+      final bytes = data.buffer.asUint8List();
+      await file.writeAsBytes(bytes, flush: true);
 
       if (mounted) {
         setState(() {
@@ -103,9 +102,7 @@ class _ArScreenState extends State<ArScreen> {
       type: NodeType.fileSystemAppFolderGLB,
       uri: _modelFileName,
       scale: vm.Vector3(0.15, 0.15, 0.15),
-      // Y를 조금 위로 올려서 바닥 아래로 묻히는 문제 방지
-      position: vm.Vector3(0.0, 0.05, 0.0),
-      // identity quaternion - GLB 기본 방향 그대로
+      position: vm.Vector3(0.0, 0.0, 0.0),
       rotation: vm.Vector4(0.0, 0.0, 0.0, 1.0),
     );
 
