@@ -52,6 +52,10 @@ class _ArScreenState extends State<ArScreen> {
   }
 
   Future<void> _onPlaneTapped(List<ARHitTestResult> hitTestResults) async {
+    // hitTestResults가 비어있으면 무시 (No point hit 상황)
+    if (hitTestResults.isEmpty) return;
+
+    // plane 타입 부재 시 null 반환
     final planeHit = hitTestResults.firstWhere(
       (r) => r.type == ARHitTestResultType.plane,
       orElse: () => hitTestResults.first,
@@ -63,11 +67,10 @@ class _ArScreenState extends State<ArScreen> {
     if (didAddAnchor != true) return;
     _anchors.add(anchor);
 
-    // Android 네이티브 assets 경로 사용
-    // 파일 위치: android/app/src/main/assets/models/cube.glb
+    // pubspec.yaml에 등록한 Flutter asset 경로와 일치
     final node = ARNode(
       type: NodeType.localGLTF2,
-      uri: 'models/cube.glb',
+      uri: 'assets/models/cube.glb',
       scale: vm.Vector3(0.15, 0.15, 0.15),
       position: vm.Vector3(0.0, 0.0, 0.0),
       rotation: vm.Vector4(1.0, 0.0, 0.0, 0.0),
