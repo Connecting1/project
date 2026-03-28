@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:ar_flutter_plugin/ar_flutter_plugin.dart';
 import 'package:ar_flutter_plugin/datatypes/config_planedetection.dart';
 import 'package:ar_flutter_plugin/datatypes/hittest_result_types.dart';
@@ -10,6 +12,8 @@ import 'package:ar_flutter_plugin/models/ar_anchor.dart';
 import 'package:ar_flutter_plugin/models/ar_hittest_result.dart';
 import 'package:ar_flutter_plugin/models/ar_node.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:vector_math/vector_math_64.dart' as vm;
 
 class ArScreen extends StatefulWidget {
@@ -28,6 +32,34 @@ class _ArScreenState extends State<ArScreen> {
   final List<ARAnchor> _anchors = [];
 
   bool _planeDetected = false;
+  String? _localModelPath;
+
+  @override
+  void initState() {
+    super.initState();
+    _prepareModel();
+  }
+
+  // Flutter assets → 앱 파일 시스템으로 복사
+  Future<void> _prepareModel() async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/cube.glb');
+
+      if (!file.existsSync()) {
+        final data = await rootBundle.load('assets/models/cube.glb');
+        await file.writeAsBytes(data.buffer.asUint8List());
+      }
+
+      if (mounted) {
+        setState(() {
+          _localModelPath = file.path;
+        });
+      }
+    } catch (e) {
+      debugPrint('Model prepare error: $e');
+    }
+  }
 
   void _onARViewCreated(
     ARSessionManager arSessionManager,
@@ -53,6 +85,10 @@ class _ArScreenState extends State<ArScreen> {
 
   Future<void> _onPlaneTapped(List<ARHitTestResult> hitTestResults) async {
     if (hitTestResults.isEmpty) return;
+    if (_localModelPath == null) {
+      debugPrint('Model not ready yet');
+      return;
+    }
 
     final planeHit = hitTestResults.firstWhere(
       (r) => r.type == ARHitTestResultType.plane,
@@ -61,14 +97,13 @@ class _ArScreenState extends State<ArScreen> {
 
     final anchor = ARPlaneAnchor(transformation: planeHit.worldTransform);
     final didAddAnchor = await _arAnchorManager!.addAnchor(anchor);
-
     if (didAddAnchor != true) return;
     _anchors.add(anchor);
 
-    // Android 네이티브 assets 경로: android/app/src/main/assets/models/cube.glb
+    // 파일 시스템에 복사된 경로로 로드
     final node = ARNode(
-      type: NodeType.localGLTF2,
-      uri: 'models/cube.glb',
+      type: NodeType.fileSystemAppFolderGLB,
+      uri: _localModelPath!,
       scale: vm.Vector3(0.15, 0.15, 0.15),
       position: vm.Vector3(0.0, 0.0, 0.0),
       rotation: vm.Vector4(1.0, 0.0, 0.0, 0.0),
