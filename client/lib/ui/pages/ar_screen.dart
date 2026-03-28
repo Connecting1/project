@@ -32,7 +32,9 @@ class _ArScreenState extends State<ArScreen> {
   final List<ARAnchor> _anchors = [];
 
   bool _planeDetected = false;
-  String? _localModelPath;
+  bool _modelReady = false;
+
+  static const String _modelFileName = 'cube.glb';
 
   @override
   void initState() {
@@ -40,20 +42,23 @@ class _ArScreenState extends State<ArScreen> {
     _prepareModel();
   }
 
-  // Flutter assets → 앱 파일 시스템으로 복사
+  // Flutter assets → app_flutter 폴더로 복사
+  // fileSystemAppFolderGLB는 app_flutter 폴더를 기준으로 파일명만 받음
   Future<void> _prepareModel() async {
     try {
       final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/cube.glb');
+      final file = File('${dir.path}/$_modelFileName');
 
       if (!file.existsSync()) {
-        final data = await rootBundle.load('assets/models/cube.glb');
+        final data = await rootBundle.load('assets/models/$_modelFileName');
         await file.writeAsBytes(data.buffer.asUint8List());
       }
 
+      debugPrint('Model ready at: ${file.path}');
+
       if (mounted) {
         setState(() {
-          _localModelPath = file.path;
+          _modelReady = true;
         });
       }
     } catch (e) {
@@ -85,7 +90,7 @@ class _ArScreenState extends State<ArScreen> {
 
   Future<void> _onPlaneTapped(List<ARHitTestResult> hitTestResults) async {
     if (hitTestResults.isEmpty) return;
-    if (_localModelPath == null) {
+    if (!_modelReady) {
       debugPrint('Model not ready yet');
       return;
     }
@@ -100,10 +105,10 @@ class _ArScreenState extends State<ArScreen> {
     if (didAddAnchor != true) return;
     _anchors.add(anchor);
 
-    // 파일 시스템에 복사된 경로로 로드
+    // fileSystemAppFolderGLB는 app_flutter 폴더 기준으로 파일명만 넘김
     final node = ARNode(
       type: NodeType.fileSystemAppFolderGLB,
-      uri: _localModelPath!,
+      uri: _modelFileName,
       scale: vm.Vector3(0.15, 0.15, 0.15),
       position: vm.Vector3(0.0, 0.0, 0.0),
       rotation: vm.Vector4(1.0, 0.0, 0.0, 0.0),
