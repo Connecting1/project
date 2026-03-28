@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:ar_flutter_plugin/ar_flutter_plugin.dart';
 import 'package:ar_flutter_plugin/datatypes/config_planedetection.dart';
 import 'package:ar_flutter_plugin/datatypes/hittest_result_types.dart';
@@ -12,8 +10,6 @@ import 'package:ar_flutter_plugin/models/ar_anchor.dart';
 import 'package:ar_flutter_plugin/models/ar_hittest_result.dart';
 import 'package:ar_flutter_plugin/models/ar_node.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:vector_math/vector_math_64.dart' as vm;
 
 class ArScreen extends StatefulWidget {
@@ -32,39 +28,10 @@ class _ArScreenState extends State<ArScreen> {
   final List<ARAnchor> _anchors = [];
 
   bool _planeDetected = false;
-  bool _modelReady = false;
 
-  static const String _modelFileName = 'cube.glb';
-
-  @override
-  void initState() {
-    super.initState();
-    _prepareModel();
-  }
-
-  // Flutter assets → app_flutter 폴더로 복사
-  // fileSystemAppFolderGLB는 app_flutter 폴더를 기준으로 파일명만 받음
-  Future<void> _prepareModel() async {
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/$_modelFileName');
-
-      if (!file.existsSync()) {
-        final data = await rootBundle.load('assets/models/$_modelFileName');
-        await file.writeAsBytes(data.buffer.asUint8List());
-      }
-
-      debugPrint('Model ready at: ${file.path}');
-
-      if (mounted) {
-        setState(() {
-          _modelReady = true;
-        });
-      }
-    } catch (e) {
-      debugPrint('Model prepare error: $e');
-    }
-  }
+  // 테스트용: ar_flutter_plugin 공식 예제에서 사용하는 웹 GLB
+  static const String _testModelUrl =
+      'https://github.com/KhronosGroup/glTF-Sample-Models/raw/main/2.0/Duck/glTF-Binary/Duck.glb';
 
   void _onARViewCreated(
     ARSessionManager arSessionManager,
@@ -90,10 +57,6 @@ class _ArScreenState extends State<ArScreen> {
 
   Future<void> _onPlaneTapped(List<ARHitTestResult> hitTestResults) async {
     if (hitTestResults.isEmpty) return;
-    if (!_modelReady) {
-      debugPrint('Model not ready yet');
-      return;
-    }
 
     final planeHit = hitTestResults.firstWhere(
       (r) => r.type == ARHitTestResultType.plane,
@@ -105,16 +68,18 @@ class _ArScreenState extends State<ArScreen> {
     if (didAddAnchor != true) return;
     _anchors.add(anchor);
 
-    // fileSystemAppFolderGLB는 app_flutter 폴더 기준으로 파일명만 넘김
+    // webGLB 테스트: 인터넷 GLB 로드
     final node = ARNode(
-      type: NodeType.fileSystemAppFolderGLB,
-      uri: _modelFileName,
-      scale: vm.Vector3(0.15, 0.15, 0.15),
+      type: NodeType.webGLB,
+      uri: _testModelUrl,
+      scale: vm.Vector3(0.2, 0.2, 0.2),
       position: vm.Vector3(0.0, 0.0, 0.0),
       rotation: vm.Vector4(1.0, 0.0, 0.0, 0.0),
     );
 
+    debugPrint('Adding webGLB node: $_testModelUrl');
     final didAddNode = await _arObjectManager!.addNode(node, planeAnchor: anchor);
+    debugPrint('addNode result: $didAddNode');
     if (didAddNode == true) {
       _nodes.add(node);
       if (mounted) {
@@ -195,8 +160,8 @@ class _ArScreenState extends State<ArScreen> {
             ),
             child: Text(
               _planeDetected
-                  ? '바닥을 감지했습니다. 탭하면 큐브를 놓습니다.'
-                  : '평평한 바닥을 향해 천청히 움직여주세요.',
+                  ? '바닥을 감지했습니다. 탭하면 오리 모델을 놓습니다.'
+                  : '평평한 바닥을 향해 천천히 움직여주세요.',
               style: const TextStyle(color: Colors.white, fontSize: 13),
             ),
           ),
