@@ -103,9 +103,10 @@ class _ArScreenState extends State<ArScreen> {
       type: NodeType.fileSystemAppFolderGLB,
       uri: _modelFileName,
       scale: vm.Vector3(0.15, 0.15, 0.15),
-      position: vm.Vector3(0.0, 0.0, 0.0),
-      // Y축 180도 회전 quaternion (0, 1, 0, 0)
-      rotation: vm.Vector4(0.0, 1.0, 0.0, 0.0),
+      // Y를 조금 위로 올려서 바닥 아래로 묻히는 문제 방지
+      position: vm.Vector3(0.0, 0.05, 0.0),
+      // identity quaternion - GLB 기본 방향 그대로
+      rotation: vm.Vector4(0.0, 0.0, 0.0, 1.0),
     );
 
     final didAddNode = await _arObjectManager!.addNode(node, planeAnchor: anchor);
