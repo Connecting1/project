@@ -103,7 +103,7 @@ class _ArScreenState extends State<ArScreen> {
       uri: _modelFileName,
       scale: vm.Vector3(0.15, 0.15, 0.15),
       position: vm.Vector3(0.0, 0.0, 0.0),
-      rotation: vm.Vector4(0.0, 0.0, 0.0, 0.0),
+      rotation: vm.Vector4(0.0, 0.0, 0.0, 1.0),
     );
 
     final didAddNode = await _arObjectManager!.addNode(node, planeAnchor: anchor);
