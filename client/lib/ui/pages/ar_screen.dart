@@ -17,11 +17,10 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:vector_math/vector_math_64.dart' as vm;
 
-// 캡슐 종류 데이터 모델
 class CapsuleItem {
   final String id;
   final String name;
-  final String assetFileName; // assets/models/ 내 파일명
+  final String assetFileName;
   final IconData icon;
   final Color color;
 
@@ -34,7 +33,6 @@ class CapsuleItem {
   });
 }
 
-// 사용 가능한 캡슐 목록 (나중에 여기에 추가)
 const List<CapsuleItem> kAvailableCapsules = [
   CapsuleItem(
     id: 'default',
@@ -45,6 +43,14 @@ const List<CapsuleItem> kAvailableCapsules = [
   ),
 ];
 
+enum _CapsuleState {
+  idle,       // 캡슐 미선택
+  floating,   // 공중에 떠있음 (드래그 가능)
+  falling,    // 낙하 중
+  burying,    // 땅속으로 들어가는 중
+  done,       // 완료
+}
+
 class ArScreen extends StatefulWidget {
   const ArScreen({super.key});
 
@@ -52,45 +58,35 @@ class ArScreen extends StatefulWidget {
   State<ArScreen> createState() => _ArScreenState();
 }
 
-class _ArScreenState extends State<ArScreen> with TickerProviderStateMixin {
+class _ArScreenState extends State<ArScreen> {
   ARSessionManager? _arSessionManager;
   ARObjectManager? _arObjectManager;
   ARAnchorManager? _arAnchorManager;
 
-  final List<ARNode> _nodes = [];
-  final List<ARAnchor> _anchors = [];
-
   bool _modelReady = false;
-  bool _capsulePlaced = false;
-  bool _isBurying = false;
-  bool _burialDone = false;
-
+  _CapsuleState _capsuleState = _CapsuleState.idle;
   CapsuleItem _selectedCapsule = kAvailableCapsules.first;
 
-  // 묻기 애니메이션 컨트롤러
-  late AnimationController _buryController;
-  late Animation<double> _buryAnimation;
+  // 현재 AR에 있는 노드
+  ARNode? _currentNode;
+  ARAnchor? _currentAnchor;
 
-  ARNode? _placedNode;
-  ARAnchor? _placedAnchor;
+  // 공중 떠 있는 위치 (world 좌표)
+  vm.Vector3 _floatPosition = vm.Vector3(0.0, 0.0, -0.5);
+  double _currentScale = 0.15;
+
+  // 드래그 시작 위치
+  Offset? _dragStartOffset;
+  vm.Vector3? _dragStartPosition;
 
   @override
   void initState() {
     super.initState();
-    _buryController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-    _buryAnimation = CurvedAnimation(
-      parent: _buryController,
-      curve: Curves.easeIn,
-    );
     _prepareModel(_selectedCapsule);
   }
 
   @override
   void dispose() {
-    _buryController.dispose();
     _arSessionManager?.dispose();
     super.dispose();
   }
@@ -123,104 +119,148 @@ class _ArScreenState extends State<ArScreen> with TickerProviderStateMixin {
       showPlanes: true,
       customPlaneTexturePath: null,
       showWorldOrigin: false,
-      handlePans: true,
-      handleRotation: true,
+      handlePans: false, // 직접 드래그 처리
+      handleRotation: false,
     );
     _arObjectManager!.onInitialize();
-    _arSessionManager!.onPlaneOrPointTap = _onPlaneTapped;
   }
 
-  Future<void> _onPlaneTapped(List<ARHitTestResult> hitTestResults) async {
-    if (hitTestResults.isEmpty) return;
-    if (!_modelReady) return;
-    if (_capsulePlaced) return; // 이미 배치된 경우 무시
-    if (_burialDone) return;
+  // 콴로드로 떠 있는 노드 수정
+  Future<void> _updateFloatingNode(vm.Vector3 position, {double? scale}) async {
+    if (_arObjectManager == null) return;
+    final s = scale ?? _currentScale;
 
-    final planeHit = hitTestResults.firstWhere(
-      (r) => r.type == ARHitTestResultType.plane,
-      orElse: () => hitTestResults.first,
-    );
+    // 기존 노드 제거
+    if (_currentNode != null) {
+      await _arObjectManager!.removeNode(_currentNode!);
+      _currentNode = null;
+    }
+    if (_currentAnchor != null) {
+      await _arAnchorManager!.removeAnchor(_currentAnchor!);
+      _currentAnchor = null;
+    }
 
-    final anchor = ARPlaneAnchor(transformation: planeHit.worldTransform);
-    final didAddAnchor = await _arAnchorManager!.addAnchor(anchor);
-    if (didAddAnchor != true) return;
+    // 새 위치에 열린 앱컨커로 배치
+    // 위치를 Matrix4 중 translation으로 설정
+    final matrix = vm.Matrix4.translation(position);
+    final anchor = ARPlaneAnchor(transformation: matrix);
+    final added = await _arAnchorManager!.addAnchor(anchor);
+    if (added != true) return;
 
     final node = ARNode(
       type: NodeType.fileSystemAppFolderGLB,
       uri: _selectedCapsule.assetFileName,
-      scale: vm.Vector3(0.15, 0.15, 0.15),
+      scale: vm.Vector3(s, s, s),
       position: vm.Vector3(0.0, 0.0, 0.0),
       rotation: vm.Vector4(1.0, 0.0, 0.0, 0.0),
     );
-
-    final didAddNode = await _arObjectManager!.addNode(node, planeAnchor: anchor);
-    if (didAddNode == true) {
-      _placedNode = node;
-      _placedAnchor = anchor;
-      _anchors.add(anchor);
-      _nodes.add(node);
-      if (mounted) setState(() => _capsulePlaced = true);
+    final nodeAdded = await _arObjectManager!.addNode(node, planeAnchor: anchor);
+    if (nodeAdded == true) {
+      _currentNode = node;
+      _currentAnchor = anchor;
+      _floatPosition = position;
     }
   }
 
-  // 묻기 실행
-  Future<void> _buryTimecapsule() async {
-    if (_placedNode == null || _isBurying) return;
-    setState(() => _isBurying = true);
+  // 캡슐 선택 시 공중에 소환
+  Future<void> _spawnCapsule() async {
+    if (!_modelReady) return;
+    // 커메라 앞 0.5m 공중
+    final spawnPos = vm.Vector3(0.0, 0.0, -0.5);
+    await _updateFloatingNode(spawnPos);
+    if (mounted) setState(() => _capsuleState = _CapsuleState.floating);
+  }
 
-    // Y 위치를 단계적으로 내려서 땅속으로 들어가는 효과
-    const steps = 10;
+  // 드래그 시작
+  void _onDragStart(DragStartDetails details) {
+    if (_capsuleState != _CapsuleState.floating) return;
+    _dragStartOffset = details.globalPosition;
+    _dragStartPosition = _floatPosition.clone();
+  }
+
+  // 드래그 업데이트
+  void _onDragUpdate(DragUpdateDetails details) {
+    if (_capsuleState != _CapsuleState.floating) return;
+    if (_dragStartOffset == null || _dragStartPosition == null) return;
+
+    final dx = (details.globalPosition.dx - _dragStartOffset!.dx) * 0.002;
+    final dy = (details.globalPosition.dy - _dragStartOffset!.dy) * 0.002;
+
+    final newPos = vm.Vector3(
+      _dragStartPosition!.x + dx,
+      _dragStartPosition!.y - dy, // 위로 드래그하면 위로
+      _dragStartPosition!.z,
+    );
+    _updateFloatingNode(newPos);
+  }
+
+  // 드래그 종료 → 낙하 애니메이션
+  void _onDragEnd(DragEndDetails details) {
+    if (_capsuleState != _CapsuleState.floating) return;
+    setState(() => _capsuleState = _CapsuleState.falling);
+    _startFallAnimation();
+  }
+
+  // 낙하 애니메이션: Y를 단계적으로 낮춤
+  Future<void> _startFallAnimation() async {
+    const steps = 12;
+    const fallDistance = 0.5; // 0.5m 낙하
+    final startY = _floatPosition.y;
+
     for (int i = 1; i <= steps; i++) {
-      await Future.delayed(const Duration(milliseconds: 60));
       if (!mounted) return;
-
-      // 노드 제거 후 새 위치로 재추가
-      await _arObjectManager!.removeNode(_placedNode!);
-      final newY = -0.02 * i;
-      final updatedNode = ARNode(
-        type: NodeType.fileSystemAppFolderGLB,
-        uri: _selectedCapsule.assetFileName,
-        scale: vm.Vector3(
-          0.15 * (1 - i / steps * 0.3),
-          0.15 * (1 - i / steps * 0.3),
-          0.15 * (1 - i / steps * 0.3),
-        ),
-        position: vm.Vector3(0.0, newY, 0.0),
-        rotation: vm.Vector4(1.0, 0.0, 0.0, 0.0),
+      await Future.delayed(const Duration(milliseconds: 40));
+      final newY = startY - (fallDistance * i / steps);
+      await _updateFloatingNode(
+        vm.Vector3(_floatPosition.x, newY, _floatPosition.z),
       );
-      final added = await _arObjectManager!.addNode(updatedNode, planeAnchor: _placedAnchor as ARPlaneAnchor);
-      if (added == true) _placedNode = updatedNode;
     }
 
-    // 최종 제거
-    if (_placedNode != null) {
-      await _arObjectManager!.removeNode(_placedNode!);
-      _placedNode = null;
-    }
-
-    if (mounted) {
-      setState(() {
-        _isBurying = false;
-        _burialDone = true;
-        _capsulePlaced = false;
-      });
-    }
+    // 바닥 도달 → 매복 애니메이션
+    if (mounted) setState(() => _capsuleState = _CapsuleState.burying);
+    await _startBuryAnimation();
   }
 
-  // 다시 배치
+  // 매복 애니메이션: Y 낮추면서 스케일 감소
+  Future<void> _startBuryAnimation() async {
+    const steps = 10;
+    final startY = _floatPosition.y;
+
+    for (int i = 1; i <= steps; i++) {
+      if (!mounted) return;
+      await Future.delayed(const Duration(milliseconds: 60));
+      final newY = startY - 0.02 * i;
+      final newScale = _currentScale * (1 - i / steps * 0.8);
+      await _updateFloatingNode(
+        vm.Vector3(_floatPosition.x, newY, _floatPosition.z),
+        scale: newScale,
+      );
+    }
+
+    // 완전히 제거
+    if (_currentNode != null) {
+      await _arObjectManager!.removeNode(_currentNode!);
+      _currentNode = null;
+    }
+    if (_currentAnchor != null) {
+      await _arAnchorManager!.removeAnchor(_currentAnchor!);
+      _currentAnchor = null;
+    }
+
+    if (mounted) setState(() => _capsuleState = _CapsuleState.done);
+  }
+
   void _reset() {
+    if (_currentNode != null) _arObjectManager?.removeNode(_currentNode!);
+    if (_currentAnchor != null) _arAnchorManager?.removeAnchor(_currentAnchor!);
+    _currentNode = null;
+    _currentAnchor = null;
     setState(() {
-      _capsulePlaced = false;
-      _burialDone = false;
-      _isBurying = false;
-      _placedNode = null;
-      _placedAnchor = null;
+      _capsuleState = _CapsuleState.idle;
+      _currentScale = 0.15;
     });
-    _nodes.clear();
-    _anchors.clear();
   }
 
-  // 캡슐 선택 바텀시트
   void _showCapsuleSelector() {
     showModalBottomSheet(
       context: context,
@@ -228,29 +268,21 @@ class _ArScreenState extends State<ArScreen> with TickerProviderStateMixin {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '캡슐 선택',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ...kAvailableCapsules.map((capsule) => _buildCapsuleCard(capsule)),
-              ],
-            ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('캡슐 선택',
+                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              ...kAvailableCapsules.map((capsule) => _buildCapsuleCard(capsule)),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -259,10 +291,10 @@ class _ArScreenState extends State<ArScreen> with TickerProviderStateMixin {
     return GestureDetector(
       onTap: () async {
         Navigator.pop(context);
-        if (capsule.id != _selectedCapsule.id) {
-          setState(() => _selectedCapsule = capsule);
-          await _prepareModel(capsule);
-        }
+        setState(() => _selectedCapsule = capsule);
+        _reset();
+        await _prepareModel(capsule);
+        await _spawnCapsule();
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
@@ -288,13 +320,10 @@ class _ArScreenState extends State<ArScreen> with TickerProviderStateMixin {
             ),
             const SizedBox(width: 14),
             Expanded(
-              child: Text(
-                capsule.name,
-                style: const TextStyle(color: Colors.white, fontSize: 15),
-              ),
+              child: Text(capsule.name,
+                  style: const TextStyle(color: Colors.white, fontSize: 15)),
             ),
-            if (isSelected)
-              Icon(Icons.check_circle, color: capsule.color, size: 22),
+            if (isSelected) Icon(Icons.check_circle, color: capsule.color, size: 22),
           ],
         ),
       ),
@@ -305,19 +334,23 @@ class _ArScreenState extends State<ArScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          ARView(
-            onARViewCreated: _onARViewCreated,
-            planeDetectionConfig: PlaneDetectionConfig.horizontalAndVertical,
-          ),
-          _buildTopBar(),
-          _buildGuideText(),
-          if (_capsulePlaced && !_isBurying) _buildBuryButton(),
-          if (_burialDone) _buildBurialDoneOverlay(),
-          _buildCapsuleSelectButton(),
-        ],
+      body: GestureDetector(
+        onPanStart: _onDragStart,
+        onPanUpdate: _onDragUpdate,
+        onPanEnd: _onDragEnd,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ARView(
+              onARViewCreated: _onARViewCreated,
+              planeDetectionConfig: PlaneDetectionConfig.horizontalAndVertical,
+            ),
+            _buildTopBar(),
+            _buildGuideText(),
+            if (_capsuleState == _CapsuleState.done) _buildDoneOverlay(),
+            _buildBottomBar(),
+          ],
+        ),
       ),
     );
   }
@@ -338,19 +371,13 @@ class _ArScreenState extends State<ArScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildGuideText() {
-    String text;
-    if (_burialDone) {
-      text = '타임캡슐이 묻혔습니다!';
-    } else if (_isBurying) {
-      text = '묻는 중...';
-    } else if (_capsulePlaced) {
-      text = '캡슐을 확인하고 묻기 버튼을 누르세요.';
-    } else if (!_modelReady) {
-      text = '캡슐 준비 중...';
-    } else {
-      text = '평평한 바닥을 향해 천천히 움직여주세요.';
-    }
-
+    final text = switch (_capsuleState) {
+      _CapsuleState.idle => _modelReady ? '아래 캡슐 버튼을 눠러 선택하세요.' : '캡슐 준비 중...',
+      _CapsuleState.floating => '드래그하여 원하는 위치로 이동 후 손을 되세요.',
+      _CapsuleState.falling => '타임캡슐이 떨어지고 있습니다...',
+      _CapsuleState.burying => '땅속으로 들어가고 있습니다...',
+      _CapsuleState.done => '타임캡슐이 묻혔습니다!',
+    };
     return SafeArea(
       child: Align(
         alignment: Alignment.topCenter,
@@ -362,105 +389,77 @@ class _ArScreenState extends State<ArScreen> with TickerProviderStateMixin {
               color: Colors.black54,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Text(
-              text,
-              style: const TextStyle(color: Colors.white, fontSize: 13),
-            ),
+            child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 13)),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildBuryButton() {
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 50),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton.icon(
-              onPressed: _buryTimecapsule,
-              icon: const Icon(Icons.download, color: Colors.white),
-              label: const Text('여기에 묻기', style: TextStyle(color: Colors.white, fontSize: 16)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFA14040),
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-              ),
-            ),
-            const SizedBox(width: 12),
-            ElevatedButton(
-              onPressed: _reset,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black54,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-              ),
-              child: const Text('취소', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBurialDoneOverlay() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.black87,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              children: [
-                const Icon(Icons.check_circle, color: Color(0xFFA14040), size: 56),
-                const SizedBox(height: 12),
-                const Text(
-                  '타임캡슐이 묻혔습니다!',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFA14040),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  ),
-                  child: const Text('완료', style: TextStyle(color: Colors.white)),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 캡슐 선택 버튼 (우하단)
-  Widget _buildCapsuleSelectButton() {
+  Widget _buildBottomBar() {
     return SafeArea(
       child: Align(
-        alignment: Alignment.bottomRight,
+        alignment: Alignment.bottomCenter,
         child: Padding(
-          padding: const EdgeInsets.only(bottom: 50, right: 20),
-          child: FloatingActionButton.extended(
-            onPressed: _showCapsuleSelector,
-            backgroundColor: const Color(0xFF1A1A1A).withOpacity(0.85),
-            icon: Icon(
-              _selectedCapsule.icon,
-              color: _selectedCapsule.color,
-            ),
-            label: Text(
-              _selectedCapsule.name,
-              style: const TextStyle(color: Colors.white, fontSize: 13),
-            ),
+          padding: const EdgeInsets.only(bottom: 30),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // 캡슐 선택 버튼
+              FloatingActionButton.extended(
+                heroTag: 'capsule_select',
+                onPressed: (_capsuleState == _CapsuleState.idle ||
+                        _capsuleState == _CapsuleState.floating)
+                    ? _showCapsuleSelector
+                    : null,
+                backgroundColor: const Color(0xFF1A1A1A).withOpacity(0.85),
+                icon: Icon(_selectedCapsule.icon, color: _selectedCapsule.color),
+                label: Text(_selectedCapsule.name,
+                    style: const TextStyle(color: Colors.white, fontSize: 13)),
+              ),
+              if (_capsuleState == _CapsuleState.idle && _modelReady) ...
+                [
+                  const SizedBox(width: 12),
+                  FloatingActionButton(
+                    heroTag: 'spawn',
+                    onPressed: _spawnCapsule,
+                    backgroundColor: const Color(0xFFA14040),
+                    child: const Icon(Icons.add, color: Colors.white),
+                  ),
+                ],
+            ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDoneOverlay() {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.black87,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle, color: Color(0xFFA14040), size: 56),
+            const SizedBox(height: 12),
+            const Text('타임캡슐이 묻혔습니다!',
+                style: TextStyle(
+                    color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFA14040),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              ),
+              child: const Text('완료', style: TextStyle(color: Colors.white)),
+            ),
+          ],
         ),
       ),
     );
