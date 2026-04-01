@@ -7,14 +7,14 @@ dependencies {
     implementation(name: 'UnityARCore', ext:'aar')
     implementation(name: 'ARPresto', ext:'aar')
     implementation(name: 'unityandroidpermissions', ext:'aar')
-    implementation project('xrmanifest.androidlib')
+    implementation project(':unityLibrary:xrmanifest.androidlib')
 
 }
 
 android {
     namespace "com.unity3d.player"
     ndkPath "C:/Program Files/Unity/Hub/Editor/2022.3.61f1/Editor/Data/PlaybackEngines/AndroidPlayer/NDK"
-    compileSdkVersion 35
+    compileSdk 35
     buildToolsVersion '34.0.0'
 
     compileOptions {
