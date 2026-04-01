@@ -7,15 +7,15 @@ plugins {
 android {
     namespace = "com.example.login_test"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = 25.1.8937393
+    ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
 
     kotlinOptions {
-        jvmTarget = "11"
+        jvmTarget = "1.8"
     }
 
     defaultConfig {
@@ -32,10 +32,6 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
-}
-
-dependencies {
-    implementation(project(":unityLibrary"))
 }
 
 flutter {

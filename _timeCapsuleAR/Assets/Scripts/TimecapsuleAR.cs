@@ -4,6 +4,8 @@ using UnityEngine;
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
 using UnityEngine.InputSystem;
+using FlutterUnityIntegration;
+
 
 public class TimecapsuleAR : MonoBehaviour
 {
@@ -97,13 +99,7 @@ public class TimecapsuleAR : MonoBehaviour
 
     private void SendMessageToFlutter(string message)
     {
-#if UNITY_ANDROID && !UNITY_EDITOR
-        using (AndroidJavaClass unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
-        using (AndroidJavaObject activity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity"))
-        {
-            activity.Call("onUnityMessage", message);
-        }
-#endif
+        UnityMessageManager.Instance.SendMessageToFlutter(message);
         Debug.Log("Flutter message: " + message);
     }
 }

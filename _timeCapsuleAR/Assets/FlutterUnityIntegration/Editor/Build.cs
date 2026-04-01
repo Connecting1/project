@@ -18,7 +18,7 @@ namespace FlutterUnityIntegration.Editor
         private static readonly string ProjectPath = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
         private static readonly string APKPath = Path.Combine(ProjectPath, "Builds/" + Application.productName + ".apk");
 
-        private static readonly string AndroidExportPath = Path.GetFullPath(Path.Combine(ProjectPath, "../../android/unityLibrary"));
+        private static readonly string AndroidExportPath = Path.GetFullPath(Path.Combine(ProjectPath, "../client/android/unityLibrary"));
         private static readonly string WindowsExportPath = Path.GetFullPath(Path.Combine(ProjectPath, "../../windows/unityLibrary/data"));
         private static readonly string IOSExportPath = Path.GetFullPath(Path.Combine(ProjectPath, "../../ios/UnityLibrary"));
         private static readonly string WebExportPath = Path.GetFullPath(Path.Combine(ProjectPath, "../../web/UnityLibrary"));
@@ -462,8 +462,8 @@ body { padding: 0; margin: 0; overflow: hidden; }
         /// </summary>
         private static void SetupAndroidProject()
         {
-            var androidPath = Path.GetFullPath(Path.Combine(ProjectPath, "../../android"));
-            var androidAppPath = Path.GetFullPath(Path.Combine(ProjectPath, "../../android/app"));
+            var androidPath = Path.GetFullPath(Path.Combine(ProjectPath, "../client/android"));
+            var androidAppPath = Path.GetFullPath(Path.Combine(ProjectPath, "../client/android/app"));
             var projBuildPath = Path.Combine(androidPath, "build.gradle");
             var appBuildPath = Path.Combine(androidAppPath, "build.gradle");
             var settingsPath = Path.Combine(androidPath, "settings.gradle");
