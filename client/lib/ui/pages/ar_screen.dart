@@ -42,8 +42,8 @@ class _ArScreenState extends State<ArScreen> {
     _unityController = controller;
   }
 
-  void _onUnityMessage(UnityWidgetController controller, String message) {
-    if (!mounted) return;
+  void _onUnityMessage(UnityWidgetController controller, String? message) {
+    if (!mounted || message == null) return;
     switch (message) {
       case 'Floating':
         setState(() => _capsuleState = _CapsuleState.floating);
@@ -190,15 +190,13 @@ class _ArScreenState extends State<ArScreen> {
         child: Padding(
           padding: const EdgeInsets.only(top: 64),
           child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: Colors.black54,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(text,
-                style:
-                    const TextStyle(color: Colors.white, fontSize: 13)),
+                style: const TextStyle(color: Colors.white, fontSize: 13)),
           ),
         ),
       ),
@@ -220,13 +218,10 @@ class _ArScreenState extends State<ArScreen> {
                         _capsuleState == _CapsuleState.floating)
                     ? _showCapsuleSelector
                     : null,
-                backgroundColor:
-                    const Color(0xFF1A1A1A).withOpacity(0.85),
-                icon: Icon(_selectedCapsule.icon,
-                    color: _selectedCapsule.color),
+                backgroundColor: const Color(0xFF1A1A1A).withOpacity(0.85),
+                icon: Icon(_selectedCapsule.icon, color: _selectedCapsule.color),
                 label: Text(_selectedCapsule.name,
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 13)),
+                    style: const TextStyle(color: Colors.white, fontSize: 13)),
               ),
               if (_capsuleState == _CapsuleState.idle) ...
                 [
@@ -256,8 +251,7 @@ class _ArScreenState extends State<ArScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.check_circle,
-                color: Color(0xFFA14040), size: 56),
+            const Icon(Icons.check_circle, color: Color(0xFFA14040), size: 56),
             const SizedBox(height: 12),
             const Text(
               '\ud0c0\uc784\ucf61\uc290\uc774 \ubb3b\ud600\uc2b5\ub2c8\ub2e4!',
