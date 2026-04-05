@@ -42,7 +42,7 @@ class _ArScreenState extends State<ArScreen> {
     _unityController = controller;
   }
 
-  void _onUnityMessage(UnityWidgetController controller, String message) {
+  void _onUnityMessage(String message) {
     if (!mounted) return;
     switch (message) {
       case 'Floating':
@@ -107,7 +107,7 @@ class _ArScreenState extends State<ArScreen> {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: isSelected
-              ? capsule.color.withOpacity(0.2)
+              ? capsule.color.withValues(alpha: 0.2)
               : const Color(0xFF2A2A2A),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
@@ -121,7 +121,7 @@ class _ArScreenState extends State<ArScreen> {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: capsule.color.withOpacity(0.15),
+                color: capsule.color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(capsule.icon, color: capsule.color, size: 28),
@@ -190,15 +190,13 @@ class _ArScreenState extends State<ArScreen> {
         child: Padding(
           padding: const EdgeInsets.only(top: 64),
           child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: Colors.black54,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(text,
-                style:
-                    const TextStyle(color: Colors.white, fontSize: 13)),
+                style: const TextStyle(color: Colors.white, fontSize: 13)),
           ),
         ),
       ),
@@ -221,7 +219,7 @@ class _ArScreenState extends State<ArScreen> {
                     ? _showCapsuleSelector
                     : null,
                 backgroundColor:
-                    const Color(0xFF1A1A1A).withOpacity(0.85),
+                    const Color(0xFF1A1A1A).withValues(alpha: 0.85),
                 icon: Icon(_selectedCapsule.icon,
                     color: _selectedCapsule.color),
                 label: Text(_selectedCapsule.name,
