@@ -42,9 +42,9 @@ class _ArScreenState extends State<ArScreen> {
     _unityController = controller;
   }
 
-  void _onUnityMessage(UnityMessage message) {
+  void _onUnityMessage(UnityWidgetController controller, String message) {
     if (!mounted) return;
-    switch (message.data) {
+    switch (message) {
       case 'Floating':
         setState(() => _capsuleState = _CapsuleState.floating);
         break;
