@@ -34,7 +34,7 @@ android {
 }
 
 dependencies {
-    implementation(project(":unityLibrary"))
+    api(project(":unityLibrary"))
 }
 
 flutter {
