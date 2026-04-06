@@ -1,5 +1,5 @@
 package com.example.login_test
 
-import io.flutter.embedding.android.FlutterActivity
+import com.unity3d.player.FlutterUnityActivity
 
-class MainActivity : FlutterActivity()
+class MainActivity : FlutterUnityActivity()

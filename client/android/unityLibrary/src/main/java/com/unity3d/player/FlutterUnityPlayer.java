@@ -8,27 +8,9 @@ public class FlutterUnityPlayer extends UnityPlayer {
         super(context, lifecycleEvents);
     }
 
-    public void pause() {
-        onPause();
-    }
-
-    public void resume() {
-        onResume();
-    }
-
-    public void start() {
-        onStart();
-    }
-
-    public void stop() {
-        onStop();
-    }
-
-    public void focusChanged(boolean hasFocus) {
-        windowFocusChanged(hasFocus);
-    }
-
-    public void destroy() {
-        quit();
-    }
+    public void pause() { onPause(); }
+    public void resume() { onResume(); }
+    public void start() { onStart(); }
+    public void stop() { onStop(); }
+    public void focusChanged(boolean hasFocus) { windowFocusChanged(hasFocus); }
 }
