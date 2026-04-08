@@ -35,6 +35,10 @@ android {
 
 dependencies {
     api(project(":unityLibrary"))
+    // Stub for android.window.OnBackInvokedCallback (Android 13+ API).
+    // Unity 2022.3 references it via reflection; without this, nativeRender()
+    // throws NoClassDefFoundError every frame on Android < 13 → black screen.
+    runtimeOnly(project(":compat-stubs"))
 }
 
 flutter {
