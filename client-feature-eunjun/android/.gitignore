@@ -12,3 +12,6 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# Unity export (428 MB binary artifacts — copy manually from Unity export or client/android/unityLibrary)
+/unityLibrary/
