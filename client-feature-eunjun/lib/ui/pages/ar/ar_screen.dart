@@ -166,7 +166,7 @@ class _ArScreenState extends State<ArScreen> {
             onUnityCreated: _onUnityCreated,
             onUnityMessage: _onUnityMessage,
             fullscreen: false,
-            useAndroidViewSurface: false,
+            useAndroidViewSurface: true,
           ),
           _buildTopBar(),
           _buildGuideText(),
