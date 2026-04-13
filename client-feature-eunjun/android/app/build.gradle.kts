@@ -15,8 +15,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    kotlinOptions {
-        jvmTarget = "11"
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+        }
     }
 
     defaultConfig {
@@ -42,6 +44,7 @@ dependencies {
     // Unity 2022.3 references these classes via reflection; without this stub,
     // nativeRender() throws NoClassDefFoundError every frame on Android < 13 → black screen.
     runtimeOnly(project(":compat-stubs"))
+    compileOnly(files("../unityLibrary/libs/unity-classes.jar"))
 }
 
 flutter {
