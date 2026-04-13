@@ -160,8 +160,9 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 35),
 
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     const Text('아직 기록을 남기지 않으셨나요?', style: TextStyle(color: textLightColor)),
                     TextButton(
