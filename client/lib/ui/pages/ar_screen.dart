@@ -4,12 +4,14 @@ import 'package:flutter_unity_widget/flutter_unity_widget.dart';
 class CapsuleItem {
   final String id;
   final String name;
+  final String? imagePath;
   final IconData icon;
   final Color color;
 
   const CapsuleItem({
     required this.id,
     required this.name,
+    this.imagePath,
     required this.icon,
     required this.color,
   });
@@ -18,7 +20,8 @@ class CapsuleItem {
 const List<CapsuleItem> kAvailableCapsules = [
   CapsuleItem(
     id: 'default',
-    name: '\uae30\ubcf8 \ud0c0\uc784\ucea1\uc290',
+    name: '기본 타임캡슐',
+    imagePath: 'assets/images/capsule/base/south.png',
     icon: Icons.inventory_2_outlined,
     color: Color(0xFFA14040),
   ),
@@ -60,7 +63,6 @@ class _ArScreenState extends State<ArScreen> {
     }
   }
 
-
   void _spawnCapsule() {
     _unityController?.postMessage(
         'TimecapsuleManager', 'SpawnCapsule', _selectedCapsule.id);
@@ -74,68 +76,10 @@ class _ArScreenState extends State<ArScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('\ucf61\uc290 \uc120\ud0dd',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              ...kAvailableCapsules.map((c) => _buildCapsuleCard(c)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCapsuleCard(CapsuleItem capsule) {
-    final isSelected = capsule.id == _selectedCapsule.id;
-    return GestureDetector(
-      onTap: () {
-        Navigator.pop(context);
-        setState(() => _selectedCapsule = capsule);
-        _spawnCapsule();
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? capsule.color.withOpacity(0.2)
-              : const Color(0xFF2A2A2A),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? capsule.color : Colors.transparent,
-            width: 2,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: capsule.color.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(capsule.icon, color: capsule.color, size: 28),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(capsule.name,
-                  style: const TextStyle(color: Colors.white, fontSize: 15)),
-            ),
-            if (isSelected)
-              Icon(Icons.check_circle, color: capsule.color, size: 22),
-          ],
-        ),
+      builder: (context) => _CapsuleSelectorSheet(
+        capsules: kAvailableCapsules,
+        selected: _selectedCapsule,
+        onSelected: (capsule) => setState(() => _selectedCapsule = capsule),
       ),
     );
   }
@@ -179,12 +123,12 @@ class _ArScreenState extends State<ArScreen> {
 
   Widget _buildGuideText() {
     final text = switch (_capsuleState) {
-      _CapsuleState.idle => '\uc544\ub798 \ucf61\uc290 \ubc84\ud2bc\uc744 \ub220\ub7ec \uc120\ud0dd\ud558\uc138\uc694.',
+      _CapsuleState.idle => '아래 캡슐 버튼을 눌러 선택하세요.',
       _CapsuleState.floating =>
-        '\ub4dc\ub798\uadf8\ud558\uc5ec \uc6d0\ud558\ub294 \uc704\uce58\ub85c \uc774\ub3d9 \ud6c4 \uc190\uc744 \ub418\uc138\uc694.',
-      _CapsuleState.falling => '\ud0c0\uc784\ucf61\uc290\uc774 \ub5a8\uc5b4\uc9c0\uace0 \uc788\uc2b5\ub2c8\ub2e4...',
-      _CapsuleState.burying => '\ub545\uc18d\uc73c\ub85c \ub4e4\uc5b4\uac00\uace0 \uc788\uc2b5\ub2c8\ub2e4...',
-      _CapsuleState.done => '\ud0c0\uc784\ucf61\uc290\uc774 \ubb3b\ud600\uc2b5\ub2c8\ub2e4!',
+        '드래그하여 원하는 위치로 이동 후 손을 되세요.',
+      _CapsuleState.falling => '타임캡슐이 떨어지고 있습니다...',
+      _CapsuleState.burying => '땅속으로 들어가고 있습니다...',
+      _CapsuleState.done => '타임캡슐이 묻혔습니다!',
     };
     return SafeArea(
       child: Align(
@@ -221,20 +165,29 @@ class _ArScreenState extends State<ArScreen> {
                     ? _showCapsuleSelector
                     : null,
                 backgroundColor: const Color(0xFF1A1A1A).withOpacity(0.85),
-                icon: Icon(_selectedCapsule.icon, color: _selectedCapsule.color),
+                icon: _selectedCapsule.imagePath != null
+                    ? Image.asset(
+                        _selectedCapsule.imagePath!,
+                        width: 28,
+                        height: 28,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) =>
+                            Icon(_selectedCapsule.icon,
+                                color: _selectedCapsule.color),
+                      )
+                    : Icon(_selectedCapsule.icon, color: _selectedCapsule.color),
                 label: Text(_selectedCapsule.name,
                     style: const TextStyle(color: Colors.white, fontSize: 13)),
               ),
-              if (_capsuleState == _CapsuleState.idle) ...
-                [
-                  const SizedBox(width: 12),
-                  FloatingActionButton(
-                    heroTag: 'spawn',
-                    onPressed: _spawnCapsule,
-                    backgroundColor: const Color(0xFFA14040),
-                    child: const Icon(Icons.add, color: Colors.white),
-                  ),
-                ],
+              if (_capsuleState == _CapsuleState.idle) ...[
+                const SizedBox(width: 12),
+                FloatingActionButton(
+                  heroTag: 'spawn',
+                  onPressed: _spawnCapsule,
+                  backgroundColor: const Color(0xFFA14040),
+                  child: const Icon(Icons.add, color: Colors.white),
+                ),
+              ],
             ],
           ),
         ),
@@ -256,7 +209,7 @@ class _ArScreenState extends State<ArScreen> {
             const Icon(Icons.check_circle, color: Color(0xFFA14040), size: 56),
             const SizedBox(height: 12),
             const Text(
-              '\ud0c0\uc784\ucf61\uc290\uc774 \ubb3b\ud600\uc2b5\ub2c8\ub2e4!',
+              '타임캡슐이 묻혔습니다!',
               style: TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -270,8 +223,146 @@ class _ArScreenState extends State<ArScreen> {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20)),
               ),
-              child: const Text('\uc644\ub8cc',
+              child: const Text('완료',
                   style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CapsuleSelectorSheet extends StatefulWidget {
+  final List<CapsuleItem> capsules;
+  final CapsuleItem selected;
+  final ValueChanged<CapsuleItem> onSelected;
+
+  const _CapsuleSelectorSheet({
+    required this.capsules,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  @override
+  State<_CapsuleSelectorSheet> createState() => _CapsuleSelectorSheetState();
+}
+
+class _CapsuleSelectorSheetState extends State<_CapsuleSelectorSheet> {
+  late CapsuleItem _preview;
+
+  @override
+  void initState() {
+    super.initState();
+    _preview = widget.selected;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                const Text('캡슐 선택',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold)),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white70),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Large preview
+            Container(
+              height: 160,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: const Color(0xFF2A2A2A),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Center(
+                child: _preview.imagePath != null
+                    ? Image.asset(
+                        _preview.imagePath!,
+                        height: 120,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) =>
+                            Icon(_preview.icon, color: _preview.color, size: 72),
+                      )
+                    : Icon(_preview.icon, color: _preview.color, size: 72),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _preview.name,
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            // Horizontal thumbnail strip
+            SizedBox(
+              height: 80,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: widget.capsules.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (_, i) {
+                  final c = widget.capsules[i];
+                  final isActive = c.id == _preview.id;
+                  return GestureDetector(
+                    onTap: () => setState(() => _preview = c),
+                    child: Container(
+                      width: 72,
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? c.color.withOpacity(0.2)
+                            : const Color(0xFF2A2A2A),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isActive ? c.color : Colors.transparent,
+                          width: 2,
+                        ),
+                      ),
+                      child: Center(
+                        child: c.imagePath != null
+                            ? Image.asset(
+                                c.imagePath!,
+                                height: 48,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) =>
+                                    Icon(c.icon, color: c.color, size: 32),
+                              )
+                            : Icon(c.icon, color: c.color, size: 32),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  widget.onSelected(_preview);
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFA14040),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: const Text('선택',
+                    style: TextStyle(color: Colors.white, fontSize: 15)),
+              ),
             ),
           ],
         ),
